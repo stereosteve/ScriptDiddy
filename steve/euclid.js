@@ -1,60 +1,53 @@
 var NeedsTimingInfo = true;
 
-const patternLength = 8;
-let cycleNumber = -1;
+// timing unit "atom"
+// .25 = 1/16
+const unit = .25
+
+const stepCount = 18
+
+const lengthInBeats = stepCount * unit
+
 let wasPlaying = false;
 
-const hits = []
+let last = -1;
 
-// 3, 8
-bjorklund(3, 8).forEach((on, i) => {
-    if (on) {
-        hits.push({at: i + 1, pitch: 33, duration: 1})
-    }
-})
-
-bjorklund(5, 8).forEach((on, i) => {
-    if (on) {
-        hits.push({at: i + 1, pitch: 55, duration: 1})
-    }
-})
+let patt = bjorklund(7, 16)
 
 
 function ProcessMIDI() {
     var musicInfo = GetTimingInfo();
-
     if (musicInfo.playing && !wasPlaying){
         onStart()
     }  
-  
     if(!musicInfo.playing && wasPlaying) {
         onStop()
-        return;
     }
-
     if (!musicInfo.playing) {
         return
     }
 
-    const nextCycle = Math.floor(musicInfo.blockStartBeat / patternLength) * patternLength
-    if (nextCycle == cycleNumber) {
-        return;
+    //
+
+    const cycleStart = Math.floor(musicInfo.blockStartBeat / lengthInBeats) * lengthInBeats
+    
+    if (cycleStart != last) {
+      last = cycleStart
+
+      patt.forEach((on, i) => {
+        if (on) {
+          let startBeat = ((i + 1) * unit) + cycleStart
+          let endBeat = startBeat + unit
+
+          let noteOn = new NoteOn();
+          noteOn.pitch = 55;
+          noteOn.sendAtBeat(startBeat)
+
+          let noteOff = new NoteOff(noteOn);
+          noteOff.sendAtBeat(endBeat);
+        }
+      })
     }
-
-    cycleNumber = nextCycle
-
-    for (let h of hits) {
-        let startBeat = cycleNumber + h.at
-        let endBeat = startBeat + h.duration
-
-        let noteOn = new NoteOn();
-        noteOn.pitch = h.pitch;
-        noteOn.sendAtBeat(startBeat)
-
-        let noteOff = new NoteOff(noteOn);
-        noteOff.sendAtBeat(endBeat);
-    }
-
 
 }
 
@@ -69,9 +62,11 @@ function onStart() {
 function onStop() {
     Trace("on stop")
     wasPlaying = false
-    cycleNumber = -1
+    cycleStart = -1
     MIDI.allNotesOff(); 
 }
+
+
 
 function bjorklund(pulses, steps, offset = 0) {
   if (steps === 0) {
