@@ -10,8 +10,6 @@ const lengthInBeats = stepCount * unit
 
 let wasPlaying = false;
 
-let last = -1;
-
 let patt = bjorklund(7, 16)
 
 
@@ -30,23 +28,22 @@ function ProcessMIDI() {
     //
 
     const cycleStart = Math.floor(musicInfo.blockStartBeat / lengthInBeats) * lengthInBeats
-    
-    if (cycleStart != last) {
-      last = cycleStart
 
-      patt.forEach((on, i) => {
-        if (on) {
-          let startBeat = ((i + 1) * unit) + cycleStart
-          let endBeat = startBeat + unit
+    for (let i = 0; i < patt.length; i++) {
+      if (!patt[i]) continue;
+      let startBeat = ((i + 1) * unit) + cycleStart
+      let endBeat = startBeat + unit
 
-          let noteOn = new NoteOn();
-          noteOn.pitch = 55;
-          noteOn.sendAtBeat(startBeat)
+      if (startBeat < musicInfo.blockStartBeat) continue;
+      if (startBeat > musicInfo.blockEndBeat) break;
 
-          let noteOff = new NoteOff(noteOn);
-          noteOff.sendAtBeat(endBeat);
-        }
-      })
+      let noteOn = new NoteOn();
+      noteOn.pitch = 55;
+      noteOn.sendAtBeat(startBeat)
+
+      let noteOff = new NoteOff(noteOn);
+      noteOff.sendAtBeat(endBeat);
+
     }
 
 }
@@ -62,7 +59,6 @@ function onStart() {
 function onStop() {
     Trace("on stop")
     wasPlaying = false
-    cycleStart = -1
     MIDI.allNotesOff(); 
 }
 
