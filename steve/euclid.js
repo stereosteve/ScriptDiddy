@@ -1,40 +1,77 @@
 var NeedsTimingInfo = true;
 
-function HandleMIDI(event)
-{
-	event.trace();
-	event.send();
-	
-	if (event instanceof NoteOn) {
-		var patt = bjorklund(3, 8, 0);
-		for (var i = 0; i < patt.length; i++) {
-			if (patt[i]) {
-				event.pitch += 1
-				var off = new NoteOff(event);
-				
-				event.beatPos += .5
-				off.beatPos += 1
-				
-				event.send()
-				off.send()
-			} 
-		}
-	}
-}
+const patternLength = 8;
+let cycleNumber = -1;
+let wasPlaying = false;
 
+const hits = []
 
+// 3, 8
+bjorklund(3, 8).forEach((on, i) => {
+    if (on) {
+        hits.push({at: i + 1, pitch: 33, duration: 1})
+    }
+})
 
+bjorklund(5, 8).forEach((on, i) => {
+    if (on) {
+        hits.push({at: i + 1, pitch: 55, duration: 1})
+    }
+})
 
 
 function ProcessMIDI() {
+    var musicInfo = GetTimingInfo();
+
+    if (musicInfo.playing && !wasPlaying){
+        onStart()
+    }  
   
+    if(!musicInfo.playing && wasPlaying) {
+        onStop()
+        return;
+    }
+
+    if (!musicInfo.playing) {
+        return
+    }
+
+    const nextCycle = Math.floor(musicInfo.blockStartBeat / patternLength) * patternLength
+    if (nextCycle == cycleNumber) {
+        return;
+    }
+
+    cycleNumber = nextCycle
+
+    for (let h of hits) {
+        let startBeat = cycleNumber + h.at
+        let endBeat = startBeat + h.duration
+
+        let noteOn = new NoteOn();
+        noteOn.pitch = h.pitch;
+        noteOn.sendAtBeat(startBeat)
+
+        let noteOff = new NoteOff(noteOn);
+        noteOff.sendAtBeat(endBeat);
+    }
+
+
 }
 
 
 
+function onStart() {
+    Trace("on start")
+    wasPlaying = true
+}
 
 
-
+function onStop() {
+    Trace("on stop")
+    wasPlaying = false
+    cycleNumber = -1
+    MIDI.allNotesOff(); 
+}
 
 function bjorklund(pulses, steps, offset = 0) {
   if (steps === 0) {
