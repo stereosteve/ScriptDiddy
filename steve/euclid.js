@@ -13,6 +13,11 @@ var pitch = 55
 var wasPlaying = false;
 
 
+var TIMES = {
+  "1/16": .25,
+  "1/8": .5,
+  "1/4": 1,
+}
 
 
 // unit: 1/16, 1/8, 1/4
@@ -23,9 +28,8 @@ var wasPlaying = false;
 var PluginParameters = [
   {
     name: "Time", type: "menu",
-    valueStrings: ["1/16 T", "1/16", "1/16 .", "1/8 T", "1/8",
-      "1/8 .", "1/4 T", "1/4", "1/4 .", "1/2 T", "1/2", "1/2 ."],
-    defaultValue: 5, numberOfSteps: 11
+    valueStrings: Object.keys(TIMES),
+    defaultValue: 5
   },
   {
     name: "Pulses", defaultValue: 3, minValue: 1, maxValue: 32,
@@ -45,6 +49,10 @@ var PluginParameters = [
 
 function ParameterChanged(param, value) {
   switch (param) {
+    case 0:
+      unit = Object.values(TIMES)[value]
+      Trace(`UNIT - ${unit}`)
+      break;
     case 1:
       pulses = value;
       break;
@@ -93,6 +101,9 @@ function ProcessMIDI() {
     if (!patt[i]) continue;
     let startBeat = ((i + 1) * unit) + cycleStart
     let endBeat = startBeat + unit
+    if (musicInfo.cycling && endBeat > musicInfo.rightCycleBeat) {
+      endBeat = musicInfo.leftCycleBeat + (endBeat - musicInfo.rightCycleBeat)
+    }
 
     if (startBeat < musicInfo.blockStartBeat) continue;
     if (startBeat > musicInfo.blockEndBeat) break;
