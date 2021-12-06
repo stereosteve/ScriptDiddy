@@ -41,9 +41,6 @@ var PluginParameters = [
   {
     name: "Offset", defaultValue: 0, minValue: 0, maxValue: 32, type: "linear", numberOfSteps: 32,
   },
-  {
-    name: "Display", type: "menu", valueStrings: ['', '']
-  },
 ];
 
 function ParameterChanged(param, value) {
@@ -63,24 +60,14 @@ function ParameterChanged(param, value) {
       break;
   }
 
-  Trace(`${details.name}: ${value}`);
+  //Trace(`${details.name}: ${value}`);
   lengthInBeats = stepCount * unit
   patt = bjorklund(pulses, stepCount, offset)
-
-
-  const pattStr = patt.join(' ')
-  if (PluginParameters[4].valueStrings[0] != pattStr) {
-    PluginParameters[4].valueStrings[0] = pattStr
-    UpdatePluginParameters()
-    Trace(pattStr)
-  }
-
-
-
+  Trace(patt)
 }
 
 function HandleMIDI(note) {
-  note.trace();
+  //note.trace();
   if (note instanceof NoteOn) {
     activeNotes.push(note)
   }
@@ -99,12 +86,12 @@ function HandleMIDI(note) {
 
 function ProcessMIDI() {
   var musicInfo = GetTimingInfo();
+  const cycleStart = (Math.floor(musicInfo.blockStartBeat / lengthInBeats) * lengthInBeats) + 1
 
   for (let note of activeNotes) {
-    const cycleStart = Math.floor(musicInfo.blockStartBeat / lengthInBeats) * lengthInBeats
     for (let i = 0; i < patt.length; i++) {
       if (!patt[i]) continue;
-      let startBeat = ((i + 1) * unit) + cycleStart
+      let startBeat = (i * unit) + cycleStart
       let endBeat = startBeat + unit
       if (musicInfo.cycling && endBeat >= musicInfo.rightCycleBeat) {
         endBeat = musicInfo.leftCycleBeat + (endBeat - musicInfo.rightCycleBeat)
