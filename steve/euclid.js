@@ -66,8 +66,8 @@ function ParameterChanged(param, value) {
   Trace(`${details.name}: ${value}`);
   lengthInBeats = stepCount * unit
   patt = bjorklund(pulses, stepCount, offset)
-  
-  
+
+
   const pattStr = patt.join(' ')
   if (PluginParameters[4].valueStrings[0] != pattStr) {
     PluginParameters[4].valueStrings[0] = pattStr
@@ -86,11 +86,13 @@ function HandleMIDI(note) {
   }
 
   if (note instanceof NoteOff) {
-    for (var i in activeNotes) {
-      if (activeNotes[i].pitch == note.pitch) {
-        activeNotes.splice(i, 1);
-      }
-    }
+    const idx = activeNotes.findIndex(n => n.pitch == note.pitch)
+    if (idx > -1) activeNotes.splice(idx, 1);
+  }
+
+  if (note instanceof PolyPressure) {
+    const found = activeNotes.find(n => n.pitch == note.pitch)
+    if (found) found.velocity = note.value
   }
 }
 
