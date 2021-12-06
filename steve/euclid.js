@@ -2,15 +2,14 @@ var NeedsTimingInfo = true;
 
 // timing unit "atom"
 // .25 = 1/16
-const unit = .25
+var unit = .25
 var pulses = 3
 var stepCount = 16
 var offset = 0
 var patt
 var lengthInBeats
-var pitch = 55
+var activeNotes = []
 
-var wasPlaying = false;
 
 
 var TIMES = {
@@ -32,7 +31,7 @@ var PluginParameters = [
     defaultValue: 5
   },
   {
-    name: "Pulses", defaultValue: 3, minValue: 1, maxValue: 32,
+    name: "Pulses", defaultValue: 7, minValue: 1, maxValue: 32,
     numberOfSteps: 31, type: "linear"
   },
   {
@@ -43,15 +42,15 @@ var PluginParameters = [
     name: "Offset", defaultValue: 0, minValue: 0, maxValue: 32, type: "linear", numberOfSteps: 32,
   },
   {
-    name: "Pitch", defaultValue: pitch, minValue: 0, maxValue: 127, type: "linear"
+    name: "Display", type: "menu", valueStrings: ['', '']
   },
 ];
 
 function ParameterChanged(param, value) {
+  const details = PluginParameters[param]
   switch (param) {
     case 0:
       unit = Object.values(TIMES)[value]
-      Trace(`UNIT - ${unit}`)
       break;
     case 1:
       pulses = value;
@@ -62,75 +61,64 @@ function ParameterChanged(param, value) {
     case 3:
       offset = value;
       break;
-    case 4:
-      pitch = value;
-      break;
   }
 
-  Trace(`${param}: ${value}`);
+  Trace(`${details.name}: ${value}`);
   lengthInBeats = stepCount * unit
   patt = bjorklund(pulses, stepCount, offset)
+  
+  
+  const pattStr = patt.join(' ')
+  if (PluginParameters[4].valueStrings[0] != pattStr) {
+    PluginParameters[4].valueStrings[0] = pattStr
+    UpdatePluginParameters()
+    Trace(pattStr)
+  }
+
+
+
 }
 
-function HandleMIDI(event) {
-  event.trace();
-  if (event instanceof NoteOn) {
-    SetParameter(4, event.pitch);
-    UpdatePluginParameters()
+function HandleMIDI(note) {
+  note.trace();
+  if (note instanceof NoteOn) {
+    activeNotes.push(note)
+  }
+
+  if (note instanceof NoteOff) {
+    for (var i in activeNotes) {
+      if (activeNotes[i].pitch == note.pitch) {
+        activeNotes.splice(i, 1);
+      }
+    }
   }
 }
 
 
 function ProcessMIDI() {
   var musicInfo = GetTimingInfo();
-  if (musicInfo.playing && !wasPlaying) {
-    onStart()
-  }
-  if (!musicInfo.playing && wasPlaying) {
-    onStop()
-  }
-  if (!musicInfo.playing) {
-    return
-  }
 
-  //
+  for (let note of activeNotes) {
+    const cycleStart = Math.floor(musicInfo.blockStartBeat / lengthInBeats) * lengthInBeats
+    for (let i = 0; i < patt.length; i++) {
+      if (!patt[i]) continue;
+      let startBeat = ((i + 1) * unit) + cycleStart
+      let endBeat = startBeat + unit
+      if (musicInfo.cycling && endBeat >= musicInfo.rightCycleBeat) {
+        endBeat = musicInfo.leftCycleBeat + (endBeat - musicInfo.rightCycleBeat)
+      }
 
-  const cycleStart = Math.floor(musicInfo.blockStartBeat / lengthInBeats) * lengthInBeats
+      if (startBeat < musicInfo.blockStartBeat) continue;
+      if (startBeat > musicInfo.blockEndBeat) break;
 
-  for (let i = 0; i < patt.length; i++) {
-    if (!patt[i]) continue;
-    let startBeat = ((i + 1) * unit) + cycleStart
-    let endBeat = startBeat + unit
-    if (musicInfo.cycling && endBeat > musicInfo.rightCycleBeat) {
-      endBeat = musicInfo.leftCycleBeat + (endBeat - musicInfo.rightCycleBeat)
+      let noteOn = new NoteOn(note);
+      noteOn.sendAtBeat(startBeat)
+
+      let noteOff = new NoteOff(noteOn);
+      noteOff.sendAtBeat(endBeat);
     }
-
-    if (startBeat < musicInfo.blockStartBeat) continue;
-    if (startBeat > musicInfo.blockEndBeat) break;
-
-    let noteOn = new NoteOn();
-    noteOn.pitch = pitch;
-    noteOn.sendAtBeat(startBeat)
-
-    let noteOff = new NoteOff(noteOn);
-    noteOff.sendAtBeat(endBeat);
-
   }
 
-}
-
-
-
-function onStart() {
-  Trace("on start")
-  wasPlaying = true
-}
-
-
-function onStop() {
-  Trace("on stop")
-  wasPlaying = false
-  MIDI.allNotesOff();
 }
 
 
