@@ -86,9 +86,20 @@ function HandleMIDI(note) {
 
 function ProcessMIDI() {
   var musicInfo = GetTimingInfo();
-  const cycleStart = (Math.floor(musicInfo.blockStartBeat / lengthInBeats) * lengthInBeats) + 1
+  const globalCycleStart = (Math.floor(musicInfo.blockStartBeat / lengthInBeats) * lengthInBeats) + 1
 
   for (let note of activeNotes) {
+
+    let cycleStart = globalCycleStart
+
+    // option for per note timing?
+    if (true) {
+      const beatsHeld = musicInfo.blockStartBeat - note.beatPos
+      // if (beatsHeld < 0) continue
+      const didCycles = Math.floor(beatsHeld / lengthInBeats)
+      cycleStart = note.beatPos + (didCycles * lengthInBeats)
+    }
+
     for (let i = 0; i < patt.length; i++) {
       if (!patt[i]) continue;
       let startBeat = (i * unit) + cycleStart
