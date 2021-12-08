@@ -1,86 +1,153 @@
+/*
+
+  Euclidean Rhythms 1.0
+
+*/
+
 var NeedsTimingInfo = true;
 
-// timing unit "atom"
-// .25 = 1/16
+// visible parameters
 var unit = .25
 var pulses = 3
 var stepCount = 16
 var offset = 0
-var patt
+var perNoteTiming = true
+var playInitialNote = true
+var quantizeRepeats = true
+
+// computed
 var lengthInBeats
 var activeNotes = []
-
+var patt
+var pattString
 
 
 var TIMES = {
-  "1/16": .25,
-  "1/8": .5,
+  "1/64t": 0.04166666666667,
+  "1/64": 0.0625,
+  "1/32t": 0.08333333333333,
+  "1/32": 0.125,
+  "1/16t": 0.16666666666667,
+  "1/16": 0.25,
+  "1/8T": 0.33333333333333,
+  "1/8": 0.5,
+  "1/4t": 0.66666666666667,
   "1/4": 1,
+  "1/2t": 1.33333333333333,
+  "1/2": 2,
+  "1/1": 4,
 }
 
-
-// unit: 1/16, 1/8, 1/4
-// multiplier: 1x
-// steps: 1-100
-// offset: 1-100
-// accents: x- x-- x--- -x -x- -xx
 var PluginParameters = [
   {
-    name: "Time", type: "menu",
+    name: "Division",
+    type: "menu",
     valueStrings: Object.keys(TIMES),
     defaultValue: 5
   },
   {
-    name: "Pulses", defaultValue: 7, minValue: 1, maxValue: 32,
-    numberOfSteps: 31, type: "linear"
+    name: "Pulses",
+    type: "linear",
+    defaultValue: 7,
+    minValue: 1,
+    maxValue: 32,
+    numberOfSteps: 31,
   },
   {
-    name: "Step Count", defaultValue: 16, minValue: 1, maxValue: 32,
-    numberOfSteps: 31, type: "linear"
+    name: "Step Count",
+    type: "linear",
+    defaultValue: 16,
+    minValue: 1,
+    maxValue: 32,
+    numberOfSteps: 31,
   },
   {
-    name: "Offset", defaultValue: 0, minValue: 0, maxValue: 32, type: "linear", numberOfSteps: 32,
+    name: "Offset",
+    type: "linear",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 32,
+    numberOfSteps: 32,
+  },
+  {
+    name: "Per Note Timing",
+    type: "checkbox",
+    defaultValue: 1
+  },
+
+  // Play Initial Note will send the initial NoteOn event thru
+  // If disabled you won't hear initial note, only repeats
+  // If enabled, initial note will be held until NoteOff event occurs
+  // TODO: alternatively initial note could be triggered for one unit duration
+  {
+    name: "Play Initial Note",
+    type: "checkbox",
+    defaultValue: 1,
+  },
+  {
+    name: "Quantize Repeats",
+    type: "checkbox",
+    defaultValue: 1,
   },
 ];
 
 function ParameterChanged(param, value) {
   const details = PluginParameters[param]
-  switch (param) {
-    case 0:
+  switch (details.name) {
+    case 'Division':
       unit = Object.values(TIMES)[value]
       break;
-    case 1:
+    case 'Pulses':
       pulses = value;
       break;
-    case 2:
+    case 'Step Count':
       stepCount = value;
       break;
-    case 3:
+    case 'Offset':
       offset = value;
+      break;
+    case 'Per Note Timing':
+      perNoteTiming = value;
+      break;
+    case 'Play Initial Note':
+      playInitialNote = value;
+      break;
+    case 'Quantize Repeats':
+      quantizeRepeats = value;
       break;
   }
 
-  //Trace(`${details.name}: ${value}`);
   lengthInBeats = stepCount * unit
   patt = bjorklund(pulses, stepCount, offset)
-  Trace(patt)
+
+  const txt = patt.map(p => p ? '■' : '□').join(' ')
+  if (pattString != txt) {
+    pattString = txt
+    Trace(pattString)
+  }
 }
 
+
 function HandleMIDI(note) {
-  //note.trace();
   if (note instanceof NoteOn) {
     activeNotes.push(note)
+    if (playInitialNote) {
+      note.send()
+    }
   }
 
   if (note instanceof NoteOff) {
     const idx = activeNotes.findIndex(n => n.pitch == note.pitch)
     if (idx > -1) activeNotes.splice(idx, 1);
+    note.send()
   }
 
   if (note instanceof PolyPressure) {
     const found = activeNotes.find(n => n.pitch == note.pitch)
     if (found) found.velocity = note.value
   }
+
+
 }
 
 
@@ -92,12 +159,11 @@ function ProcessMIDI() {
 
     let cycleStart = globalCycleStart
 
-    // option for per note timing?
-    if (true) {
-      const beatsHeld = musicInfo.blockStartBeat - note.beatPos
-      // if (beatsHeld < 0) continue
+    if (perNoteTiming) {
+      const noteBeatPos = quantizeRepeats ? _quantize(note.beatPos) : note.beatPos
+      const beatsHeld = musicInfo.blockStartBeat - noteBeatPos
       const didCycles = Math.floor(beatsHeld / lengthInBeats)
-      cycleStart = note.beatPos + (didCycles * lengthInBeats)
+      cycleStart = noteBeatPos + (didCycles * lengthInBeats)
     }
 
     for (let i = 0; i < patt.length; i++) {
@@ -118,11 +184,23 @@ function ProcessMIDI() {
       noteOff.sendAtBeat(endBeat);
     }
   }
+}
 
+// finds the closest beat that falls on a beat division "unit"
+function _quantize(beatPos) {
+  const offBy = beatPos % unit
+  const roundDown = beatPos - offBy
+  const roundUp = beatPos + (unit - offBy)
+  if (beatPos - roundDown < roundUp - beatPos) {
+    return roundDown
+  } else {
+    return roundUp
+  }
 }
 
 
-
+// take from:
+// https://github.com/Lokua/euclidean-sequence/blob/master/index.js
 function bjorklund(pulses, steps, offset = 0) {
   if (steps === 0) {
     throw new RangeError('steps must be greater than 0')
