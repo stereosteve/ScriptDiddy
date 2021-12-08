@@ -7,13 +7,13 @@
 var NeedsTimingInfo = true;
 
 // visible parameters
-var unit = .25
-var pulses = 3
+var unit = 0.25
+var pulses = 5
 var stepCount = 16
 var offset = 0
-var perNoteTiming = true
-var playInitialNote = true
-var quantizeRepeats = true
+var perNoteTiming = 1
+var playInitialNote = 0
+var quantizeRepeats = 1
 
 // computed
 var lengthInBeats
@@ -48,7 +48,7 @@ var PluginParameters = [
   {
     name: "Pulses",
     type: "linear",
-    defaultValue: 7,
+    defaultValue: pulses,
     minValue: 1,
     maxValue: 32,
     numberOfSteps: 31,
@@ -56,7 +56,7 @@ var PluginParameters = [
   {
     name: "Step Count",
     type: "linear",
-    defaultValue: 16,
+    defaultValue: stepCount,
     minValue: 1,
     maxValue: 32,
     numberOfSteps: 31,
@@ -64,7 +64,7 @@ var PluginParameters = [
   {
     name: "Offset",
     type: "linear",
-    defaultValue: 0,
+    defaultValue: offset,
     minValue: 0,
     maxValue: 32,
     numberOfSteps: 32,
@@ -72,7 +72,7 @@ var PluginParameters = [
   {
     name: "Per Note Timing",
     type: "checkbox",
-    defaultValue: 1
+    defaultValue: perNoteTiming
   },
 
   // Play Initial Note will send the initial NoteOn event thru
@@ -82,12 +82,12 @@ var PluginParameters = [
   {
     name: "Play Initial Note",
     type: "checkbox",
-    defaultValue: 1,
+    defaultValue: playInitialNote,
   },
   {
     name: "Quantize Repeats",
     type: "checkbox",
-    defaultValue: 1,
+    defaultValue: quantizeRepeats,
   },
 ];
 
@@ -125,6 +125,7 @@ function ParameterChanged(param, value) {
     pattString = txt
     Trace(pattString)
   }
+
 }
 
 
@@ -133,13 +134,14 @@ function HandleMIDI(note) {
     activeNotes.push(note)
     if (playInitialNote) {
       note.send()
+      // new NoteOff(note).sendAfterBeats(unit) // only playInitialNote for unit duration?
     }
   }
 
   if (note instanceof NoteOff) {
     const idx = activeNotes.findIndex(n => n.pitch == note.pitch)
     if (idx > -1) activeNotes.splice(idx, 1);
-    note.send()
+    note.send() // remove if playInitialNote behavior changes
   }
 
   if (note instanceof PolyPressure) {
