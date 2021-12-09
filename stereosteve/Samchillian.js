@@ -1,6 +1,6 @@
 /*
 
-	Samchillian 1.0
+	Samchillian 0.1
 
 	A very basic version of Samchillian Tip Tip Tip Cheeepeeeee.
 	
@@ -12,7 +12,7 @@
 		* input scale (white keys only eg)
 		* output scale (D Dorian eg)
 		* microtonal output scales?
-		* ui parameters... better 
+		* ui parameters
 
 */
 
@@ -32,11 +32,10 @@ var activeNotes = []
 
 
 function HandleMIDI(event) {
-	event.trace();
+	//event.trace();
 
 	if (event instanceof NoteOn) {
-
-		silence(event.pitch)
+		//silence(event.pitch) ?
 
 		event.initialPitch = event.pitch
 		var diff = event.pitch - center
@@ -51,14 +50,14 @@ function HandleMIDI(event) {
 		}
 
 		event.pitch = cursor;
-		event.send();
-
 		activeNotes.push(event)
 	}
 
-	if (event instanceof NoteOff) {
+	else if (event instanceof NoteOff) {
 		silence(event.pitch)
 	}
+
+	event.send();
 }
 
 
@@ -66,7 +65,9 @@ function silence(initialPitch) {
 	const idx = activeNotes.findIndex(n => n.initialPitch == initialPitch)
 	if (idx > -1) {
 		const note = activeNotes[idx]
-		new NoteOff(note).send()
+		const off = new NoteOff()
+		off.pitch = note.pitch
+		off.send()
 		activeNotes.splice(idx, 1)
 	}
 }
