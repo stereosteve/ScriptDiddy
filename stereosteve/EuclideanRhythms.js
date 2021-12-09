@@ -163,7 +163,7 @@ function ProcessMIDI() {
 
     if (perNoteTiming) {
       const noteBeatPos = quantizeRepeats ? _quantize(note.beatPos) : note.beatPos
-      const beatsHeld = musicInfo.blockStartBeat - noteBeatPos
+      const beatsHeld = musicInfo.blockStartBeat - noteBeatPos + 1
       const didCycles = Math.floor(beatsHeld / lengthInBeats)
       cycleStart = noteBeatPos + (didCycles * lengthInBeats)
     }
