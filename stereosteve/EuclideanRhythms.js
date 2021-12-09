@@ -1,6 +1,6 @@
 /*
 
-  Euclidean Rhythms 1.0
+  Euclidean Rhythms 0.2
 
 */
 
@@ -12,7 +12,6 @@ var pulses = 5
 var stepCount = 16
 var offset = 0
 var perNoteTiming = 1
-var playInitialNote = 0
 var quantizeRepeats = 1
 
 // computed
@@ -74,16 +73,6 @@ var PluginParameters = [
     type: "checkbox",
     defaultValue: perNoteTiming
   },
-
-  // Play Initial Note will send the initial NoteOn event thru
-  // If disabled you won't hear initial note, only repeats
-  // If enabled, initial note will be held until NoteOff event occurs
-  // TODO: alternatively initial note could be triggered for one unit duration
-  {
-    name: "Play Initial Note",
-    type: "checkbox",
-    defaultValue: playInitialNote,
-  },
   {
     name: "Quantize Repeats",
     type: "checkbox",
@@ -109,9 +98,6 @@ function ParameterChanged(param, value) {
     case 'Per Note Timing':
       perNoteTiming = value;
       break;
-    case 'Play Initial Note':
-      playInitialNote = value;
-      break;
     case 'Quantize Repeats':
       quantizeRepeats = value;
       break;
@@ -132,23 +118,22 @@ function ParameterChanged(param, value) {
 function HandleMIDI(note) {
   if (note instanceof NoteOn) {
     activeNotes.push(note)
-    if (playInitialNote) {
-      note.send()
-      // new NoteOff(note).sendAfterBeats(unit) // only playInitialNote for unit duration?
-    }
   }
 
-  if (note instanceof NoteOff) {
+  else if (note instanceof NoteOff) {
     const idx = activeNotes.findIndex(n => n.pitch == note.pitch)
     if (idx > -1) activeNotes.splice(idx, 1);
-    note.send() // remove if playInitialNote behavior changes
   }
 
-  if (note instanceof PolyPressure) {
+  else if (note instanceof PolyPressure) {
     const found = activeNotes.find(n => n.pitch == note.pitch)
     if (found) found.velocity = note.value
+    note.send()
   }
 
+  else {
+    note.send()
+  }
 
 }
 
