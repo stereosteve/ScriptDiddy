@@ -13,7 +13,8 @@ To install or update, open Terminal and paste:
 echo "\n\n Installing scripter plugins... \n\n" &&\
 cd /tmp &&\
 curl --silent -L "https://github.com/stereosteve/ScriptDiddy/archive/refs/heads/main.zip" -o ScriptDiddy.zip &&\
-unzip -qq -f -o ScriptDiddy.zip &&\
+rm -rf ScriptDiddy-main &&\
+unzip -qq ScriptDiddy.zip &&\
 mkdir -p ~/Music/Audio\ Music\ Apps/Plug-In\ Settings/Scripter/stereosteve &&\
 cp ScriptDiddy-main/stereosteve/* ~/Music/Audio\ Music\ Apps/Plug-In\ Settings/Scripter/stereosteve &&\
 cd - &&\
