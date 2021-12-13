@@ -5,3 +5,7 @@ update::
 install::
 	rm -rf ~/Music/Audio\ Music\ Apps/Plug-In\ Settings/Scripter/stereosteve
 	cp -r stereosteve ~/Music/Audio\ Music\ Apps/Plug-In\ Settings/Scripter
+
+
+fmt::
+	deno fmt --options-use-tabs stereosteve/*.js
