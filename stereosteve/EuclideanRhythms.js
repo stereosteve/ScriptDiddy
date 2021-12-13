@@ -68,6 +68,38 @@ var PluginParameters = [
 		numberOfSteps: 32,
 	},
 	{
+		name: "Accentuation",
+		type: "text",
+	},
+	{
+		name: "Accents",
+		type: "linear",
+		defaultValue: pulses - 2,
+		minValue: 0,
+		maxValue: 32,
+		numberOfSteps: 32,
+	},
+	{
+		name: "Quieting",
+		type: "linear",
+		defaultValue: 0.5,
+		minValue: 0,
+		maxValue: 1,
+		numberOfSteps: 100,
+	},
+	{
+		name: "Timing",
+		type: "text",
+	},
+	{
+		name: "Note Length",
+		type: "linear",
+		defaultValue: 0.8,
+		minValue: 0,
+		maxValue: 4,
+		numberOfSteps: 400,
+	},
+	{
 		name: "Per Note Timing",
 		type: "checkbox",
 		defaultValue: perNoteTiming,
@@ -105,7 +137,19 @@ function ParameterChanged(param, value) {
 	lengthInBeats = stepCount * unit;
 	patt = bjorklund(pulses, stepCount, offset);
 
-	const txt = patt.map((p) => p ? "■" : "□").join(" ");
+	// apply accents to patt
+	// 0 = off, 1 = quiet, 2 = on
+	const accents = bjorklund(GetParameter("Accents"), pulses, 0);
+	let noteCounter = 0;
+	for (let i in patt) {
+		if (!patt[i]) continue;
+		if (accents[noteCounter]) {
+			patt[i]++;
+		}
+		noteCounter++;
+	}
+
+	const txt = patt.map((p) => p == 2 ? "●" : p ? "◒" : "◯").join(" ");
 	if (pattString != txt) {
 		pattString = txt;
 		Trace(pattString);
@@ -147,7 +191,7 @@ function ProcessMIDI() {
 		for (let i = 0; i < patt.length; i++) {
 			if (!patt[i]) continue;
 			let startBeat = (i * unit) + cycleStart;
-			let endBeat = startBeat + unit;
+			let endBeat = startBeat + (unit * GetParameter("Note Length"));
 			if (musicInfo.cycling && endBeat >= musicInfo.rightCycleBeat) {
 				endBeat = musicInfo.leftCycleBeat +
 					(endBeat - musicInfo.rightCycleBeat);
@@ -157,6 +201,11 @@ function ProcessMIDI() {
 			if (startBeat > musicInfo.blockEndBeat) break;
 
 			let noteOn = new NoteOn(note);
+
+			// make non-accents quieter
+			if (patt[i] == 1) {
+				noteOn.velocity *= GetParameter("Quieting");
+			}
 			noteOn.sendAtBeat(startBeat);
 
 			let noteOff = new NoteOff(noteOn);
