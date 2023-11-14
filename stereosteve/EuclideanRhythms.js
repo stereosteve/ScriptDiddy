@@ -149,7 +149,7 @@ function ParameterChanged(param, value) {
 		noteCounter++;
 	}
 
-	const txt = patt.map((p) => p == 2 ? "●" : p ? "◒" : "◯").join(" ");
+	const txt = patt.map((p) => (p == 2 ? "●" : p ? "◒" : "◯")).join(" ");
 	if (pattString != txt) {
 		pattString = txt;
 		Trace(pattString);
@@ -173,28 +173,24 @@ function HandleMIDI(note) {
 
 function ProcessMIDI() {
 	var musicInfo = GetTimingInfo();
-	const globalCycleStart =
-		(Math.floor(musicInfo.blockStartBeat / lengthInBeats) * lengthInBeats) + 1;
+	const globalCycleStart = Math.floor(musicInfo.blockStartBeat / lengthInBeats) * lengthInBeats;
 
 	for (let note of activeNotes) {
 		let cycleStart = globalCycleStart;
 
 		if (perNoteTiming) {
-			const noteBeatPos = quantizeRepeats
-				? _quantize(note.beatPos)
-				: note.beatPos;
-			const beatsHeld = musicInfo.blockStartBeat - noteBeatPos + 1;
+			const noteBeatPos = quantizeRepeats ? _quantize(note.beatPos) : note.beatPos;
+			const beatsHeld = musicInfo.blockStartBeat - noteBeatPos;
 			const didCycles = Math.floor(beatsHeld / lengthInBeats);
-			cycleStart = noteBeatPos + (didCycles * lengthInBeats);
+			cycleStart = noteBeatPos + didCycles * lengthInBeats;
 		}
 
 		for (let i = 0; i < patt.length; i++) {
 			if (!patt[i]) continue;
-			let startBeat = (i * unit) + cycleStart;
-			let endBeat = startBeat + (unit * GetParameter("Note Length"));
+			let startBeat = i * unit + cycleStart;
+			let endBeat = startBeat + unit * GetParameter("Note Length");
 			if (musicInfo.cycling && endBeat >= musicInfo.rightCycleBeat) {
-				endBeat = musicInfo.leftCycleBeat +
-					(endBeat - musicInfo.rightCycleBeat);
+				endBeat = musicInfo.leftCycleBeat + (endBeat - musicInfo.rightCycleBeat);
 			}
 
 			if (startBeat < musicInfo.blockStartBeat) continue;
@@ -293,8 +289,5 @@ function bjorklund(pulses, steps, offset = 0) {
 }
 
 function rotate(array, n) {
-	return [
-		...array.slice(array.length - n),
-		...array.slice(0, array.length - n),
-	];
+	return [...array.slice(array.length - n), ...array.slice(0, array.length - n)];
 }
